@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vizard - MetaMask-powered Aztec Wallet</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #e0e0e0;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(90deg, #00d4ff, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: #888;
+      margin-bottom: 2rem;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #666;
+    }
+
+    .status-dot.connected {
+      background: #00ff88;
+    }
+
+    .status-dot.connecting {
+      background: #ffaa00;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    button {
+      background: linear-gradient(90deg, #7c3aed, #00d4ff);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .address {
+      font-family: monospace;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.5rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      word-break: break-all;
+    }
+
+    .log {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.8rem;
+      max-height: 200px;
+      overflow-y: auto;
+      user-select: text;
+      cursor: text;
+    }
+
+    .log-entry {
+      margin-bottom: 0.25rem;
+      opacity: 0.8;
+    }
+
+    .log-entry.info { color: #00d4ff; }
+    .log-entry.success { color: #00ff88; }
+    .log-entry.error { color: #ff4444; }
+
+    .info-box {
+      background: rgba(124, 58, 237, 0.1);
+      border-left: 3px solid #7c3aed;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #888;
+    }
+
+    input {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.3);
+      color: white;
+      font-size: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #7c3aed;
+    }
+
+    .checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+
+    .checkbox input {
+      width: auto;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Vizard</h1>
+    <p class="subtitle">MetaMask-powered Aztec Wallet</p>
+
+    <div class="card">
+      <label for="nodeUrl">Aztec Node URL</label>
+      <input
+        type="text"
+        id="nodeUrl"
+        value="https://next.devnet.aztec-labs.com"
+        placeholder="https://next.devnet.aztec-labs.com"
+      />
+
+      <div class="checkbox">
+        <input type="checkbox" id="useSponsoredFees" checked />
+        <label for="useSponsoredFees">Use sponsored fees (SponsoredFPC)</label>
+      </div>
+
+      <div class="status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Disconnected</span>
+      </div>
+
+      <button id="connectBtn">
+        Connect MetaMask
+      </button>
+    </div>
+
+    <div class="card" id="accountCard" style="display: none;">
+      <h3 style="margin-bottom: 1rem;">Connected Account</h3>
+
+      <label>EVM Address</label>
+      <div class="address" id="evmAddress">-</div>
+
+      <label style="margin-top: 1rem;">Aztec Address</label>
+      <div class="address" id="aztecAddress">-</div>
+    </div>
+
+    <div class="card" id="actionsCard" style="display: none;">
+      <h3 style="margin-bottom: 1rem;">Token Actions (Public)</h3>
+
+      <label for="tokenAddress">Token Contract Address</label>
+      <input
+        type="text"
+        id="tokenAddress"
+        value="0x1f82c5ab43b5dc0d9c3224759f6ced5d12774386d163d315a8a0c3550add1fd9"
+        placeholder="0x..."
+      />
+
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button id="loadTokenBtn">
+          Load Token
+        </button>
+        <button id="faucetBtn">
+          Faucet (100 USDC)
+        </button>
+      </div>
+
+      <label style="margin-top: 1rem;">Loaded Token</label>
+      <div class="address" id="loadedToken">-</div>
+
+      <label style="margin-top: 1rem;" for="recipient">Recipient (Aztec Address)</label>
+      <input
+        type="text"
+        id="recipient"
+        placeholder="0x..."
+      />
+
+      <label for="amount">Amount (raw units)</label>
+      <input
+        type="text"
+        id="amount"
+        placeholder="1000000"
+      />
+
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button id="balanceBtn">
+          Check Public Balance
+        </button>
+        <button id="transferBtn">
+          Send Public Transfer
+        </button>
+      </div>
+
+      <label style="margin-top: 1rem;">Public Balance</label>
+      <div class="address" id="publicBalance">-</div>
+
+      <label style="margin-top: 1rem;">Last Tx Hash</label>
+      <div class="address" id="txHash">-</div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom: 1rem;">Connection Log</h3>
+      <div class="log" id="log"></div>
+    </div>
+
+    <div class="info-box">
+      <strong>How it works:</strong>
+      <ol style="margin-top: 0.5rem; padding-left: 1.5rem;">
+        <li>MetaMask signs a message to derive your Aztec keys</li>
+        <li>Connect to an Aztec node (sandbox or hosted)</li>
+        <li>Your ECDSA account is registered/deployed</li>
+        <li>MetaMask signs all transaction authorizations</li>
+        <li>SDK loads a token contract and sends a public transfer</li>
+      </ol>
+      <p style="margin-top: 0.75rem; color: #ffaa00; font-size: 0.85rem;">
+        <strong>Note:</strong> Browser WASM prover is SLOW (30-60+ minutes per tx).
+        For faster operations, use Node.js scripts instead.
+      </p>
+    </div>
+  </div>
+
+  <script type="module" src="/src/demo/main.ts"></script>
+</body>
+</html>

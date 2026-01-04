@@ -1,0 +1,13 @@
+{
+  "tokenAddress": "0x1f82c5ab43b5dc0d9c3224759f6ced5d12774386d163d315a8a0c3550add1fd9",
+  "tokenClassId": "unknown",
+  "tokenName": "VizardUSDC",
+  "tokenSymbol": "USDC",
+  "tokenDecimals": "6",
+  "adminAddress": "0x1f428d2f8913b040f00bbbb1e10e9c3081cacb941f4e6ac66e28520782e554ff",
+  "deployerSecretKey": "0x1035a0445ae39c2bd2ec1eef5fa2b415e8c8522d7265e2eeecc64f483d3e66fa",
+  "deployerSalt": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "deployerSigningKey": "0x155f2de70705a06a0dca13004f949bc197c2431baa23d9d428eb448bc48db83a",
+  "nodeUrl": "https://next.devnet.aztec-labs.com",
+  "deployedAt": "2026-01-04T09:07:53.015Z"
+}
