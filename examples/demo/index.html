@@ -259,6 +259,55 @@
 
       <label style="margin-top: 1rem;">Last Tx Hash</label>
       <div class="address" id="txHash">-</div>
+
+      <hr style="margin: 1.5rem 0; border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1);" />
+
+      <h3 style="margin-bottom: 1rem;">Token Actions (Private)</h3>
+
+      <label for="shieldAmount">Public → Private Amount (raw units)</label>
+      <input
+        type="text"
+        id="shieldAmount"
+        placeholder="1000000"
+      />
+
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button id="shieldBtn">
+          Public → Private
+        </button>
+        <button id="syncBtn">
+          Sync Private State
+        </button>
+      </div>
+
+      <label style="margin-top: 1rem;">Private Balance</label>
+      <div class="address" id="privateBalance">-</div>
+
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+        <button id="privateBalanceBtn">
+          Check Private Balance
+        </button>
+      </div>
+
+      <label style="margin-top: 1rem;" for="privateRecipient">Private Transfer Recipient (Aztec Address)</label>
+      <input
+        type="text"
+        id="privateRecipient"
+        placeholder="0x..."
+      />
+
+      <label for="privateAmount">Private Transfer Amount (raw units)</label>
+      <input
+        type="text"
+        id="privateAmount"
+        placeholder="1000000"
+      />
+
+      <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+        <button id="privateTransferBtn">
+          Send Private Transfer
+        </button>
+      </div>
     </div>
 
     <div class="card">

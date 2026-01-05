@@ -277,18 +277,182 @@ async function handlePublicTransfer() {
   });
 }
 
+async function handlePrivateBalance() {
+  return enqueueTx(async () => {
+    try {
+      requireSdk();
+      requireToken();
+      log('Fetching private balance...');
+      const account = sdk!.getAztecAddress();
+      if (!account) {
+        throw new Error('Aztec account not available.');
+      }
+      const token = await sdk!.contractAt(TokenContract, loadedTokenAddress!, true);
+      const balance = await token.methods.balance_of_private(account).simulate({ from: account });
+      const privateBalance = document.getElementById('privateBalance');
+      if (privateBalance) {
+        privateBalance.textContent = balance.toString();
+      }
+      log('Private balance updated.', 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch private balance';
+      log(`Error: ${message}`, 'error');
+    }
+  });
+}
+
+async function handlePublicToPrivate() {
+  return enqueueTx(async () => {
+    try {
+      requireSdk();
+      requireToken();
+      const amountRaw = getInputValue('shieldAmount');
+      if (!amountRaw) {
+        throw new Error('Amount is required.');
+      }
+
+      const amount = BigInt(amountRaw);
+      log('Starting public → private transfer (WASM prover)...');
+
+      const startTime = Date.now();
+      const progressInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        log(`Still proving... ${mins}m ${secs}s elapsed`);
+      }, 30000);
+
+      try {
+        const account = sdk!.getAztecAddress();
+        if (!account) {
+          throw new Error('Aztec account not available.');
+        }
+        const token = await sdk!.contractAt(TokenContract, loadedTokenAddress!, true);
+        const paymentMethod = sdk!.getFeePaymentMethod();
+        const feeOptions = await sdk!.buildFeeOptions({ paymentMethod });
+
+        const tx = await token.methods
+          .transfer_to_private(account, amount)
+          .send({ from: account, ...feeOptions });
+
+        clearInterval(progressInterval);
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        const txHash = (await tx.getTxHash()).toString();
+        const txHashEl = document.getElementById('txHash');
+        if (txHashEl) {
+          txHashEl.textContent = txHash;
+        }
+        log(`Tx submitted after ${elapsed}s: ${txHash}`, 'success');
+
+        log('Waiting for tx to be mined...');
+        await tx.wait();
+        log('Tx mined!', 'success');
+      } catch (e) {
+        clearInterval(progressInterval);
+        throw e;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Transfer failed';
+      log(`Error: ${message}`, 'error');
+    }
+  });
+}
+
+async function handlePrivateTransfer() {
+  return enqueueTx(async () => {
+    try {
+      requireSdk();
+      requireToken();
+      const recipient = getInputValue('privateRecipient');
+      const amountRaw = getInputValue('privateAmount');
+      if (!recipient || !amountRaw) {
+        throw new Error('Recipient and amount are required.');
+      }
+
+      const amount = BigInt(amountRaw);
+      log('Starting private transfer (WASM prover)...');
+
+      const startTime = Date.now();
+      const progressInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        log(`Still proving... ${mins}m ${secs}s elapsed`);
+      }, 30000);
+
+      try {
+        const account = sdk!.getAztecAddress();
+        if (!account) {
+          throw new Error('Aztec account not available.');
+        }
+        const token = await sdk!.contractAt(TokenContract, loadedTokenAddress!, true);
+        const to = AztecAddress.fromString(recipient);
+        const paymentMethod = sdk!.getFeePaymentMethod();
+        const feeOptions = await sdk!.buildFeeOptions({ paymentMethod });
+
+        const tx = await token.methods
+          .transfer(to, amount)
+          .send({ from: account, ...feeOptions });
+
+        clearInterval(progressInterval);
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        const txHash = (await tx.getTxHash()).toString();
+        const txHashEl = document.getElementById('txHash');
+        if (txHashEl) {
+          txHashEl.textContent = txHash;
+        }
+        log(`Tx submitted after ${elapsed}s: ${txHash}`, 'success');
+
+        log('Waiting for tx to be mined...');
+        await tx.wait();
+        log('Tx mined!', 'success');
+      } catch (e) {
+        clearInterval(progressInterval);
+        throw e;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Private transfer failed';
+      log(`Error: ${message}`, 'error');
+    }
+  });
+}
+
+async function handleSyncPrivateState() {
+  try {
+    requireSdk();
+    requireToken();
+    const tokenAddress = AztecAddress.fromString(loadedTokenAddress!);
+    log('Syncing private state...');
+    await sdk!.syncPrivateState([tokenAddress]);
+    log('Private sync requested.', 'success');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Private sync failed';
+    log(`Error: ${message}`, 'error');
+  }
+}
+
 function bindHandlers() {
   const connectBtn = document.getElementById('connectBtn');
   const loadTokenBtn = document.getElementById('loadTokenBtn');
   const faucetBtn = document.getElementById('faucetBtn');
   const balanceBtn = document.getElementById('balanceBtn');
   const transferBtn = document.getElementById('transferBtn');
+  const privateBalanceBtn = document.getElementById('privateBalanceBtn');
+  const shieldBtn = document.getElementById('shieldBtn');
+  const privateTransferBtn = document.getElementById('privateTransferBtn');
+  const syncBtn = document.getElementById('syncBtn');
 
   connectBtn?.addEventListener('click', handleConnect);
   loadTokenBtn?.addEventListener('click', handleLoadToken);
   faucetBtn?.addEventListener('click', handleFaucet);
   balanceBtn?.addEventListener('click', handlePublicBalance);
   transferBtn?.addEventListener('click', handlePublicTransfer);
+  privateBalanceBtn?.addEventListener('click', handlePrivateBalance);
+  shieldBtn?.addEventListener('click', handlePublicToPrivate);
+  privateTransferBtn?.addEventListener('click', handlePrivateTransfer);
+  syncBtn?.addEventListener('click', handleSyncPrivateState);
 }
 
 if (typeof window.ethereum === 'undefined') {
