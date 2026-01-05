@@ -2,7 +2,9 @@
 
 **MetaMask-powered Aztec Wallet**
 
-Use your existing MetaMask wallet to interact with Aztec's private smart contracts. No additional extensions required.
+Mission: an embedded wallet that lets any Aztec app use an existing EVM wallet (starting with MetaMask) to control an Aztec account in the browser.
+
+Status: **WIP**. Expect breaking changes while the SDK surface stabilizes.
 
 ## How It Works
 
@@ -44,31 +46,20 @@ Use your existing MetaMask wallet to interact with Aztec's private smart contrac
 - **Unified identity** - Your Aztec address is derived from your ETH address
 - **Single recovery** - Recover Aztec account with your existing seed phrase
 
-## Installation
+## Quickstart (App Integration)
 
 ```bash
-npm install @vizard/wallet
+pnpm add @vizard/wallet
 ```
 
-## Usage
+> Package publishing is in progress. Until then, use a workspace or git install.
 
-```typescript
-import { VizardWallet } from '@vizard/wallet';
-
-// Create wallet instance
-const wallet = new VizardWallet({
-  pxeUrl: 'https://devnet.aztec-labs.com',
-});
-
-// Connect (triggers MetaMask popups)
-const account = await wallet.connect();
-
-// Use like any Aztec wallet
-const token = await TokenContract.at(tokenAddress, account);
-await token.methods.transfer(recipient, amount).send();
+```bash
+# From a workspace
+pnpm add ../packages/sdk
 ```
 
-## SDK (MVP)
+### Usage
 
 ```typescript
 import { VizardSdk } from '@vizard/wallet';
@@ -84,25 +75,51 @@ await sdk.connect();
 
 const token = await sdk.contractAt(TokenContract, '0x...');
 const paymentMethod = sdk.getFeePaymentMethod();
+const feeOptions = await sdk.buildFeeOptions({ paymentMethod });
 const account = sdk.getAztecAddress();
 if (!account) throw new Error('Aztec account not available');
 
 await token.methods
   .transfer_in_public(account, account, 1n, 0)
-  .send(paymentMethod ? { from: account, fee: { paymentMethod } } : { from: account })
+  .send({ from: account, ...feeOptions })
   .wait();
 ```
 
-Notes:
-- `feeMode: 'sponsored'` uses the canonical SponsoredFPC (salt 0) for testnet/devnet fees.
-- You need a deployed token contract address and balance to transfer.
+## Environment
 
-## Connection Flow
+- No required env vars. Pass `pxeUrl` directly, or map it from your app env (e.g. `import.meta.env.VITE_PXE_URL`).
+- Browser proving needs the bb.js WASM assets to be served by your app. See `examples/demo` for a Vite copy setup.
+
+## Fee Model
+
+- `feeMode: 'sponsored'` uses the canonical SponsoredFPC (salt 0) for testnet/devnet fees.
+- `feeMode: 'none'` uses the account's fee juice balance (you must fund it).
+- `buildFeeOptions()` fetches base + priority fees and applies padding; you can override `padding` per tx.
+
+## SDK Usage API (MVP)
+
+- `new VizardSdk({ pxeUrl, feeMode, autoSync, bbWasmPath, bbThreads, bbBackend, bbLog })`
+- `connect()` - connects MetaMask, derives keys, registers account
+- `onStateChange(cb)` - progress updates for UI
+- `contractAt(ContractClass, address, register?)` - register + bind to a contract
+- `buildFeeOptions({ paymentMethod?, padding? })` - fetches gas fees and returns `fee` options
+- `getWallet()`, `getNode()`, `getAztecAddress()`, `getEvmAddress()`
+- `getFeePaymentMethod()` - sponsored fee provider if configured
+- `syncPrivateState(addresses)` - explicit sync when needed
+
+## Flow
 
 1. **Connect MetaMask** - User approves connection
 2. **Sign Key Derivation** - User signs message to derive Aztec keys
 3. **Initialize PXE** - Browser loads WASM prover
 4. **Register Account** - ECDSA account deployed/registered
+
+## Plan / TODO
+
+- Demo coverage: add private balance read + private transfer + a sync private state button.
+- Auth model: add a per-tx signing toggle (MM popup vs session authwit cache), with explicit UI/logs.
+- Wallet-agnostic provider: abstract EVM signer input (WalletConnect, Coinbase, MM).
+- Build/publish pipeline: ensure `packages/sdk` builds cleanly and can be consumed externally (exports, types).
 
 ## Development
 

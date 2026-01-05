@@ -195,11 +195,12 @@ async function handleFaucet() {
       await testWallet.registerContract(instance, TokenContract.artifact);
 
       const deployerToken = await TokenContract.at(aztecTokenAddress, testWallet);
+      const feeOptions = await sdk!.buildFeeOptions({ paymentMethod });
       const tx = await deployerToken.methods
         .mint_to_public(userAddress, mintAmount)
         .send({
           from: deployerAccount.address,
-          fee: { paymentMethod },
+          ...feeOptions,
         });
 
       const txHash = await tx.getTxHash();
@@ -246,10 +247,11 @@ async function handlePublicTransfer() {
         const token = await sdk!.contractAt(TokenContract, loadedTokenAddress!, true);
         const to = AztecAddress.fromString(recipient);
         const paymentMethod = sdk!.getFeePaymentMethod();
+        const feeOptions = await sdk!.buildFeeOptions({ paymentMethod });
 
         const tx = await token.methods
           .transfer_in_public(account, to, amount, 0)
-          .send(paymentMethod ? { from: account, fee: { paymentMethod } } : { from: account });
+          .send({ from: account, ...feeOptions });
 
         clearInterval(progressInterval);
 

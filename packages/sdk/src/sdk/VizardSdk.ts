@@ -21,6 +21,21 @@ type ContractWrapper<T> = {
   at: (address: AztecAddress, wallet: Wallet) => T;
 };
 
+type GasFeesLike = {
+  feePerDaGas: bigint;
+  feePerL2Gas: bigint;
+};
+
+type FeeOptions = {
+  fee: {
+    paymentMethod?: FeePaymentMethod;
+    gasSettings: {
+      maxFeesPerGas: GasFeesLike;
+      maxPriorityFeesPerGas: GasFeesLike;
+    };
+  };
+};
+
 export class VizardSdk {
   private wallet: VizardWallet;
   private feePaymentMethod: FeePaymentMethod | null = null;
@@ -91,6 +106,34 @@ export class VizardSdk {
 
   getFeePaymentMethod() {
     return this.feePaymentMethod;
+  }
+
+  async buildFeeOptions(options?: { paymentMethod?: FeePaymentMethod | null; padding?: number }): Promise<FeeOptions> {
+    const node = this.getNode();
+    if (!node) {
+      throw new Error('Aztec node not available.');
+    }
+
+    const padding = options?.padding ?? 2;
+    const baseFees = await node.getCurrentBaseFees();
+    let priorityFees = baseFees.mul(0);
+    try {
+      priorityFees = await node.getMaxPriorityFees();
+    } catch (error) {
+      console.warn('[Vizard] Failed to fetch max priority fees, defaulting to 0:', error);
+    }
+
+    const gasSettings = {
+      maxFeesPerGas: baseFees.mul(padding),
+      maxPriorityFeesPerGas: priorityFees.mul(padding),
+    };
+
+    return {
+      fee: {
+        ...(options?.paymentMethod ? { paymentMethod: options.paymentMethod } : {}),
+        gasSettings,
+      },
+    };
   }
 
   async contractAt<T>(contract: ContractWrapper<T>, address: string | AztecAddress, register = true): Promise<T> {
