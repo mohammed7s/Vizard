@@ -72,27 +72,24 @@ await token.methods.transfer(recipient, amount).send();
 
 ```typescript
 import { VizardSdk } from '@vizard/wallet';
+import { TokenContract } from '@aztec/noir-contracts.js/Token';
 
 const sdk = new VizardSdk({
   pxeUrl: 'https://aztec-testnet-fullnode.zkv.xyz',
   feeMode: 'sponsored',
   autoSync: true,
-  perUserStore: true,
 });
 
 await sdk.connect();
 
-const token = await sdk.getTokenContract('0x...');
+const token = await sdk.contractAt(TokenContract, '0x...');
 const paymentMethod = sdk.getFeePaymentMethod();
+const account = sdk.getAztecAddress();
+if (!account) throw new Error('Aztec account not available');
 
 await token.methods
-  .transfer_public_to_public(
-    sdk.getAztecAddress(),
-    sdk.getAztecAddress(),
-    1n,
-    0,
-  )
-  .send(paymentMethod ? { fee: { paymentMethod } } : undefined)
+  .transfer_in_public(account, account, 1n, 0)
+  .send(paymentMethod ? { from: account, fee: { paymentMethod } } : { from: account })
   .wait();
 ```
 
@@ -104,7 +101,7 @@ Notes:
 
 1. **Connect MetaMask** - User approves connection
 2. **Sign Key Derivation** - User signs message to derive Aztec keys
-3. **Initialize PXE** - Browser loads WASM prover (~30-60s first time)
+3. **Initialize PXE** - Browser loads WASM prover
 4. **Register Account** - ECDSA account deployed/registered
 
 ## Development
@@ -113,11 +110,13 @@ Notes:
 # Install dependencies
 pnpm install
 
-# Start dev server
+# Start the example app
 pnpm dev
 
 # Open http://localhost:5555
 ```
+
+The example app lives in `examples/demo` and consumes the SDK from `packages/sdk`.
 
 ### Running the Aztec Sandbox
 
@@ -187,7 +186,7 @@ When a transaction needs authorization:
 ## Limitations
 
 - **First load is slow** - WASM prover artifacts are ~200MB
-- **Proofs take 30-60s** - Browser WASM is slower than native
+- **Proofs can be slower in browser** - WASM prover is slower than native
 - **Dapps must integrate** - Not a drop-in replacement for Azguard
 
 ## License

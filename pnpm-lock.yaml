@@ -9,7 +9,49 @@ overrides:
 
 importers:
 
-  .:
+  .: {}
+
+  examples/demo:
+    dependencies:
+      '@aztec/aztec.js':
+        specifier: 3.0.0-devnet.20251212
+        version: 3.0.0-devnet.20251212(typescript@5.9.3)
+      '@aztec/bb.js':
+        specifier: 3.0.0-devnet.20251212
+        version: 3.0.0-devnet.20251212
+      '@aztec/noir-acvm_js':
+        specifier: 3.0.0-devnet.20251212
+        version: 3.0.0-devnet.20251212
+      '@aztec/noir-contracts.js':
+        specifier: 3.0.0-devnet.20251212
+        version: 3.0.0-devnet.20251212(typescript@5.9.3)
+      '@aztec/noir-noirc_abi':
+        specifier: 3.0.0-devnet.20251212
+        version: 3.0.0-devnet.20251212
+      '@vizard/wallet':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.3
+      buffer:
+        specifier: ^6.0.3
+        version: 6.0.3
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vite:
+        specifier: ^5.4.0
+        version: 5.4.21(@types/node@22.19.3)
+      vite-plugin-node-polyfills:
+        specifier: ^0.22.0
+        version: 0.22.0(rollup@4.54.0)(vite@5.4.21(@types/node@22.19.3))
+      vite-plugin-static-copy:
+        specifier: ^3.1.4
+        version: 3.1.4(vite@5.4.21(@types/node@22.19.3))
+
+  packages/sdk:
     dependencies:
       '@aztec/accounts':
         specifier: 3.0.0-devnet.20251212
@@ -51,24 +93,12 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.3
-      buffer:
-        specifier: ^6.0.3
-        version: 6.0.3
       tsx:
         specifier: ^4.19.0
         version: 4.21.0
       typescript:
         specifier: ^5.6.0
         version: 5.9.3
-      vite:
-        specifier: ^5.4.0
-        version: 5.4.21(@types/node@22.19.3)
-      vite-plugin-node-polyfills:
-        specifier: ^0.22.0
-        version: 0.22.0(rollup@4.54.0)(vite@5.4.21(@types/node@22.19.3))
-      vite-plugin-static-copy:
-        specifier: ^3.1.4
-        version: 3.1.4(vite@5.4.21(@types/node@22.19.3))
 
 packages:
 
@@ -5993,7 +6023,7 @@ snapshots:
 
   md5.js@1.3.5:
     dependencies:
-      hash-base: 3.0.5
+      hash-base: 3.1.2
       inherits: 2.0.4
       safe-buffer: 5.2.1
 

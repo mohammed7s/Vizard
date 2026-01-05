@@ -2,7 +2,6 @@ import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import { nodePolyfills, PolyfillOptions } from 'vite-plugin-node-polyfills';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
 import type { Plugin } from 'vite';
-import * as path from 'path';
 
 // Fix for node polyfills in workspace setups
 // https://github.com/davidmyersdev/vite-plugin-node-polyfills/issues/81
@@ -63,17 +62,17 @@ export default defineConfig({
       targets: [
         {
           // noir-acvm_js WASM files
-          src: 'node_modules/.pnpm/@aztec+noir-acvm_js@*/node_modules/@aztec/noir-acvm_js/web/*.wasm',
+          src: '../../packages/sdk/node_modules/@aztec/noir-acvm_js/web/*.wasm',
           dest: 'assets/acvm',
         },
         {
           // noir-noirc_abi WASM files
-          src: 'node_modules/.pnpm/@aztec+noir-noirc_abi@*/node_modules/@aztec/noir-noirc_abi/web/*.wasm',
+          src: '../../packages/sdk/node_modules/@aztec/noir-noirc_abi/web/*.wasm',
           dest: 'assets/noirc_abi',
         },
         {
           // bb.js WASM files (threads build; required for browser backend)
-          src: 'node_modules/@aztec/bb.js/dest/node/barretenberg_wasm/barretenberg-threads.wasm.gz',
+          src: '../../packages/sdk/node_modules/@aztec/bb.js/dest/node/barretenberg_wasm/barretenberg-threads.wasm.gz',
           dest: 'assets/bb',
         },
       ],

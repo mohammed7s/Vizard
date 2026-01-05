@@ -11,6 +11,7 @@ import type { AztecNode } from '@aztec/aztec.js/node';
 import type { Wallet } from '@aztec/aztec.js/wallet';
 
 import { deriveAztecKeys, type DerivedKeys } from '../keys/derivation';
+import type { BackendOptions } from '@aztec/bb.js';
 import { connectToPXE } from '../pxe/BrowserPXE';
 import { SPONSORED_FPC_ADDRESS } from '../fees/sponsored';
 
@@ -99,14 +100,9 @@ export class VizardWallet {
       return;
     }
 
-    const { Barretenberg, BackendType } = await import('@aztec/bb.js');
+    const { Barretenberg, BackendType } = await import('@aztec/bb.js') as typeof import('@aztec/bb.js');
     const logger = this.config.bbLog ? (msg: string) => console.log(`[Vizard][BB] ${msg}`) : undefined;
-    const options: {
-      threads?: number;
-      wasmPath?: string;
-      backend?: unknown;
-      logger?: (msg: string) => void;
-    } = {
+    const options: BackendOptions = {
       threads: this.config.bbThreads,
       wasmPath: this.config.bbWasmPath,
       logger,

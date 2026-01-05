@@ -1,7 +1,19 @@
-import { VizardSdk } from '../index';
+import { AztecAddress } from '@aztec/aztec.js/addresses';
+import { Fr, GrumpkinScalar } from '@aztec/aztec.js/fields';
+import { TokenContract } from '@aztec/noir-contracts.js/Token';
+import { VizardSdk, getSponsoredPaymentMethod } from '@vizard/wallet';
 
 let sdk: VizardSdk | null = null;
 let loadedTokenAddress: string | null = null;
+let txQueue: Promise<void> = Promise.resolve();
+
+// Token deployer keys (token admin) - for faucet functionality
+// From token-deployment.json (deployed via deploy-token.ts)
+const TESTNET_DEPLOYER = {
+  secretKey: '0x1035a0445ae39c2bd2ec1eef5fa2b415e8c8522d7265e2eeecc64f483d3e66fa',
+  salt: '0x0000000000000000000000000000000000000000000000000000000000000000',
+  signingKey: '0x155f2de70705a06a0dca13004f949bc197c2431baa23d9d428eb448bc48db83a',
+};
 
 function log(message: string, type: 'info' | 'success' | 'error' = 'info') {
   const logEl = document.getElementById('log');
@@ -44,6 +56,13 @@ function requireToken() {
   if (!loadedTokenAddress) {
     throw new Error('Token not loaded. Enter a token address and click Load Token.');
   }
+}
+
+function enqueueTx<T>(fn: () => Promise<T>): Promise<T> {
+  const run = async () => fn();
+  const next = txQueue.then(run, run);
+  txQueue = next.then(() => undefined, () => undefined);
+  return next;
 }
 
 async function handleConnect() {
@@ -110,7 +129,7 @@ async function handleLoadToken() {
       throw new Error('Token address is required.');
     }
     log('Loading token contract...');
-    await sdk!.getTokenContract(tokenAddress, true);
+    await sdk!.contractAt(TokenContract, tokenAddress, true);
     loadedTokenAddress = tokenAddress;
     const loadedToken = document.getElementById('loadedToken');
     if (loadedToken) {
@@ -128,7 +147,12 @@ async function handlePublicBalance() {
     requireSdk();
     requireToken();
     log('Fetching public balance...');
-    const balance = await sdk!.getPublicBalance(loadedTokenAddress!);
+    const account = sdk!.getAztecAddress();
+    if (!account) {
+      throw new Error('Aztec account not available.');
+    }
+    const token = await sdk!.contractAt(TokenContract, loadedTokenAddress!, true);
+    const balance = await token.methods.balance_of_public(account).simulate({ from: account });
     const publicBalance = document.getElementById('publicBalance');
     if (publicBalance) {
       publicBalance.textContent = balance.toString();
@@ -141,67 +165,114 @@ async function handlePublicBalance() {
 }
 
 async function handleFaucet() {
-  try {
-    requireSdk();
-    requireToken();
-    log('Requesting tokens from faucet... (this takes 2-3 minutes)');
-    const mintAmount = 100n * 10n ** 6n; // 100 USDC (6 decimals)
-    const txHash = await sdk!.mintTokens(loadedTokenAddress!, mintAmount);
-    log(`Faucet tx: ${txHash}`, 'success');
-    log('Tokens minted! Click Check Balance to see.', 'success');
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Faucet failed';
-    log(`Error: ${message}`, 'error');
-  }
+  return enqueueTx(async () => {
+    try {
+      requireSdk();
+      requireToken();
+      log('Requesting tokens from faucet... (this takes 2-3 minutes)');
+      const mintAmount = 100n * 10n ** 6n; // 100 USDC (6 decimals)
+
+      const node = sdk!.getNode();
+      const userAddress = sdk!.getAztecAddress();
+      const testWallet = sdk!.getTestWallet();
+      if (!node || !userAddress || !testWallet) {
+        throw new Error('Wallet not connected');
+      }
+
+      const signingKeyBuffer = Buffer.from(TESTNET_DEPLOYER.signingKey.slice(2), 'hex');
+      const deployerAccount = await testWallet.createSchnorrAccount(
+        Fr.fromString(TESTNET_DEPLOYER.secretKey),
+        Fr.fromString(TESTNET_DEPLOYER.salt),
+        GrumpkinScalar.fromBuffer(signingKeyBuffer),
+      );
+
+      const paymentMethod = await getSponsoredPaymentMethod(testWallet);
+      const aztecTokenAddress = AztecAddress.fromString(loadedTokenAddress!);
+      const instance = await node.getContract(aztecTokenAddress);
+      if (!instance) {
+        throw new Error('Token contract not found');
+      }
+      await testWallet.registerContract(instance, TokenContract.artifact);
+
+      const deployerToken = await TokenContract.at(aztecTokenAddress, testWallet);
+      const tx = await deployerToken.methods
+        .mint_to_public(userAddress, mintAmount)
+        .send({
+          from: deployerAccount.address,
+          fee: { paymentMethod },
+        });
+
+      const txHash = await tx.getTxHash();
+      await tx.wait({ timeout: 300000 });
+
+      log(`Faucet tx: ${txHash.toString()}`, 'success');
+      log('Tokens minted! Click Check Balance to see.', 'success');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Faucet failed';
+      log(`Error: ${message}`, 'error');
+    }
+  });
 }
 
 async function handlePublicTransfer() {
-  try {
-    requireSdk();
-    requireToken();
-    const recipient = getInputValue('recipient');
-    const amountRaw = getInputValue('amount');
-    if (!recipient || !amountRaw) {
-      throw new Error('Recipient and amount are required.');
-    }
-
-    const amount = BigInt(amountRaw);
-    log('Starting public transfer (WASM prover - may take 30+ minutes)...');
-
-    const startTime = Date.now();
-    let lastLog = startTime;
-
-    // Progress indicator
-    const progressInterval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      const mins = Math.floor(elapsed / 60);
-      const secs = elapsed % 60;
-      log(`Still proving... ${mins}m ${secs}s elapsed`);
-    }, 30000); // Log every 30 seconds
-
+  return enqueueTx(async () => {
     try {
-      const tx = await sdk!.sendPublicTransfer(loadedTokenAddress!, recipient, amount);
-      clearInterval(progressInterval);
-
-      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      const txHash = (await tx.getTxHash()).toString();
-      const txHashEl = document.getElementById('txHash');
-      if (txHashEl) {
-        txHashEl.textContent = txHash;
+      requireSdk();
+      requireToken();
+      const recipient = getInputValue('recipient');
+      const amountRaw = getInputValue('amount');
+      if (!recipient || !amountRaw) {
+        throw new Error('Recipient and amount are required.');
       }
-      log(`Tx submitted after ${elapsed}s: ${txHash}`, 'success');
 
-      log('Waiting for tx to be mined...');
-      await tx.wait();
-      log('Tx mined!', 'success');
-    } catch (e) {
-      clearInterval(progressInterval);
-      throw e;
+      const amount = BigInt(amountRaw);
+      log('Starting public transfer (WASM prover)...');
+
+      const startTime = Date.now();
+
+      // Progress indicator
+      const progressInterval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const mins = Math.floor(elapsed / 60);
+        const secs = elapsed % 60;
+        log(`Still proving... ${mins}m ${secs}s elapsed`);
+      }, 30000); // Log every 30 seconds
+
+      try {
+        const account = sdk!.getAztecAddress();
+        if (!account) {
+          throw new Error('Aztec account not available.');
+        }
+        const token = await sdk!.contractAt(TokenContract, loadedTokenAddress!, true);
+        const to = AztecAddress.fromString(recipient);
+        const paymentMethod = sdk!.getFeePaymentMethod();
+
+        const tx = await token.methods
+          .transfer_in_public(account, to, amount, 0)
+          .send(paymentMethod ? { from: account, fee: { paymentMethod } } : { from: account });
+
+        clearInterval(progressInterval);
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        const txHash = (await tx.getTxHash()).toString();
+        const txHashEl = document.getElementById('txHash');
+        if (txHashEl) {
+          txHashEl.textContent = txHash;
+        }
+        log(`Tx submitted after ${elapsed}s: ${txHash}`, 'success');
+
+        log('Waiting for tx to be mined...');
+        await tx.wait();
+        log('Tx mined!', 'success');
+      } catch (e) {
+        clearInterval(progressInterval);
+        throw e;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Transfer failed';
+      log(`Error: ${message}`, 'error');
     }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Transfer failed';
-    log(`Error: ${message}`, 'error');
-  }
+  });
 }
 
 function bindHandlers() {

@@ -1,6 +1,6 @@
 /**
  * Transfer tokens from ECDSA account to another address
- * Uses native prover (fast ~50s vs browser WASM 30+ minutes)
+ * Uses native prover (typically faster than browser WASM)
  *
  * Usage: npx tsx scripts/transfer-tokens.ts
  */
