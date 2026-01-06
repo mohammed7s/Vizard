@@ -10,6 +10,13 @@ Embedded Aztec wallet SDK controlled by your EVM wallet (MetaMask first). WIP.
     \_/  |_/___\__,_|_|  \__,_|
 ```
 
+## Auth Modes (WIP)
+
+We are exploring two authorization modes:
+
+- **Session auth (current)**: derive Aztec keys from a MetaMask signature once per session and keep them **in memory** only. No derived keys are written to disk.
+- **Per‑tx auth (planned)**: MetaMask signs each transaction intent to produce an auth witness. This removes a long‑lived session signing key, but you still need Aztec keys in memory to decrypt notes and build proofs.
+
 ## What This Repo Is
 
 - SDK for embedding an Aztec wallet in any web app.

@@ -85,6 +85,17 @@ await token.methods
   .wait();
 ```
 
+### MetaMask Connection (required user click)
+
+Browsers only allow wallet popups on direct user actions. Trigger `sdk.connect()` from a button click:
+
+```typescript
+const connectBtn = document.getElementById('connectBtn');
+connectBtn?.addEventListener('click', async () => {
+  await sdk.connect(); // MetaMask popup
+});
+```
+
 ## Environment
 
 - No required env vars. Pass `pxeUrl` directly, or map it from your app env (e.g. `import.meta.env.VITE_PXE_URL`).
@@ -113,6 +124,13 @@ await token.methods
 2. **Sign Key Derivation** - User signs message to derive Aztec keys
 3. **Initialize PXE** - Browser loads WASM prover
 4. **Register Account** - ECDSA account deployed/registered
+
+## Auth Modes (WIP)
+
+We are exploring two authorization modes:
+
+- **Session auth (current)**: derive Aztec keys from a MetaMask signature once per session and keep them **in memory** only. No derived keys are written to disk.
+- **Per‑tx auth (planned)**: MetaMask signs each transaction intent to produce an auth witness. This removes a long‑lived session signing key, but you still need Aztec keys in memory to decrypt notes and build proofs.
 
 ## Plan / TODO
 
@@ -190,21 +208,15 @@ When a transaction needs authorization:
 
 **No backend ever sees your private data.**
 
-## Comparison with Azguard
+## Comparison with Extension Wallet
 
-| | Azguard | Vizard |
+| | Extension wallet | Vizard |
 |--|---------|--------|
 | Installation | Browser extension | None (library in dapp) |
 | Key management | Separate seed phrase | Derived from MetaMask |
 | PXE location | Extension | Browser (in dapp) |
 | Proof generation | Extension WASM | Browser WASM |
-| Recovery | Azguard seed phrase | MetaMask seed phrase |
-
-## Limitations
-
-- **First load is slow** - WASM prover artifacts are ~200MB
-- **Proofs can be slower in browser** - WASM prover is slower than native
-- **Dapps must integrate** - Not a drop-in replacement for Azguard
+| Recovery | Extension wallet seed phrase | MetaMask seed phrase |
 
 ## License
 
